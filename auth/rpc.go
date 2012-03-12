@@ -106,7 +106,12 @@ func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (string,
 // GetUserPassword returns the username and password for the key
 // formatted using format and a. GetKey is called to obtain missing
 // information (if any).
-func (rpc *RPC) GetUserPassword(getKey GetKeyFunc, format string, a ...interface{}) (string, string, error) {
+func GetUserPassword(getKey GetKeyFunc, format string, a ...interface{}) (string, string, error) {
+	rpc, err := NewRPC()
+	if err != nil {
+		return "", "", err
+	}
+	defer rpc.Close()
 	status, b, err := rpc.callNeedKey(getKey, "start", []byte(fmt.Sprintf(format, a...)))
 	if status != "ok" {
 		return "", "", fmt.Errorf("rpc start failed: %v", err)

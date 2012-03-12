@@ -23,12 +23,7 @@ func TestGetUserPassword(t *testing.T) {
 		t.Fatalf("AddKey failed: %v\n", err)
 	}
 
-	rpc, err := NewRPC()
-	if err != nil {
-		t.Fatalf("open factotum/rpc: %v\n", err)
-	}
-	defer rpc.Close()
-	user1, pass1, err := rpc.GetUserPassword(nil, params)
+	user1, pass1, err := GetUserPassword(nil, params)
 	if err != nil {
 		t.Errorf("GetUserPassword failed: %v\n", err)
 	}
