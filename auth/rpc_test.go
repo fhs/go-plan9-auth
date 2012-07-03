@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestGetUserPassword(t *testing.T) {
+func testUserPass(t *testing.T, getUP func(*control, string, string) (string, string, error)) {
 	user, pass := "gopher", "gorocks"
 	params := "dom=testing.golang.org proto=pass role=client"
 	key := params + fmt.Sprintf(" user=%s !password=%s", user, pass)
@@ -19,11 +19,8 @@ func TestGetUserPassword(t *testing.T) {
 		t.Fatalf("open factotum/ctl: %v", err)
 	}
 	defer ctl.Close()
-	if err := ctl.AddKey(key); err != nil {
-		t.Fatalf("AddKey failed: %v\n", err)
-	}
 
-	user1, pass1, err := GetUserPassword(nil, params)
+	user1, pass1, err := getUP(ctl, params, key)
 	if err != nil {
 		t.Errorf("GetUserPassword failed: %v\n", err)
 	}
@@ -34,4 +31,21 @@ func TestGetUserPassword(t *testing.T) {
 	if err := ctl.DeleteKey(params); err != nil {
 		t.Errorf("DeleteKey failed: %v\n", err)
 	}
+}
+
+func TestGetUserPassword(t *testing.T) {
+	testUserPass(t, func(ctl *control, params, key string) (string, string, error) {
+		if err := ctl.AddKey(key); err != nil {
+			t.Fatalf("AddKey failed: %v\n", err)
+		}
+		return GetUserPassword(nil, params)
+	})
+}
+
+func TestGetUserPassword1(t *testing.T) {
+	testUserPass(t, func(ctl *control, params, key string) (string, string, error) {
+		return GetUserPassword(func(string) error {
+			return ctl.AddKey(key)
+		}, params)
+	})
 }

@@ -87,20 +87,24 @@ func (rpc *RPC) Call(verb string, arg []byte) (string, []byte, error) {
 // is missing or incomplete, getKey is called in an attempt
 // to obtain missing information.
 func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (string, []byte, error) {
-	status, b, err := rpc.Call(verb, arg)
-	if err != nil {
-		return status, b, err
-	}
-	switch status {
-	case "neekkey", "badkey":
-		if getKey == nil {
+	for {
+		status, b, err := rpc.Call(verb, arg)
+		if err != nil {
 			return status, b, err
 		}
-		if err := getKey(string(b)); err != nil {
+		switch status {
+		default:
 			return status, b, err
+		case "needkey", "badkey":
+			if getKey == nil {
+				return status, b, errors.New("key not found")
+			}
+			if err := getKey(string(b)); err != nil {
+				return status, b, err
+			}
 		}
 	}
-	return status, b, err
+	panic("not reached")
 }
 
 // GetUserPassword returns the username and password for the key
