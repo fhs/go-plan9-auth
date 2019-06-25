@@ -5,9 +5,10 @@
 package auth
 
 import (
-	"code.google.com/p/goplan9/plan9"
-	"code.google.com/p/goplan9/plan9/client"
 	"os/exec"
+
+	"9fans.net/go/plan9"
+	"9fans.net/go/plan9/client"
 )
 
 // GetKeyFunc takes an attribute-value-list as argument.
