@@ -1,4 +1,4 @@
-module bitbucket.org/fhs/go-plan9-auth
+module github.com/fhs/go-plan9-auth
 
 go 1.11
 
