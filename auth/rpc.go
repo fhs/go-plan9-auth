@@ -11,8 +11,8 @@ import (
 	"errors"
 	"fmt"
 
-	"9fans.net/go/plan9"
-	"9fans.net/go/plan9/client"
+	"github.com/fhs/9fans-go/plan9"
+	"github.com/fhs/9fans-go/plan9/client"
 )
 
 const (

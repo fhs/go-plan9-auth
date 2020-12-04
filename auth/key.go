@@ -7,8 +7,8 @@ package auth
 import (
 	"os/exec"
 
-	"9fans.net/go/plan9"
-	"9fans.net/go/plan9/client"
+	"github.com/fhs/9fans-go/plan9"
+	"github.com/fhs/9fans-go/plan9/client"
 )
 
 // GetKeyFunc takes an attribute-value-list as argument.
