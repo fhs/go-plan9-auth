@@ -32,7 +32,7 @@ type control struct {
 }
 
 func newControl() (*control, error) {
-	fsys, err := client.MountService("factotum")
+	fsys, err := mountFactotum()
 	if err != nil {
 		return nil, err
 	}

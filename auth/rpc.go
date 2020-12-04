@@ -38,7 +38,7 @@ type RPC struct {
 
 // NewRPC creates and returns a new RPC.
 func NewRPC() (*RPC, error) {
-	fsys, err := client.MountService("factotum")
+	fsys, err := mountFactotum()
 	if err != nil {
 		return nil, err
 	}
