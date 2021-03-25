@@ -19,15 +19,28 @@ const (
 	rpcMaxLen = 4096
 )
 
-var rpcReplyStatuses = []string{
-	"badkey",
-	"done",
-	"error",
-	"error",
-	"needkey",
-	"ok",
-	"phase",
-	"toosmall",
+// A Status represents a RPC reply type.
+type Status string
+
+// These are the possible reply types from a RPC.
+const (
+	StatusBadKey   Status = "badkey"
+	StatusDone     Status = "done"
+	StatusError    Status = "error"
+	StatusNeedKey  Status = "needkey"
+	StatusOK       Status = "ok"
+	StatusPhase    Status = "phase"
+	StatusTooSmall Status = "toosmall"
+)
+
+var rpcReplyStatuses = []Status{
+	StatusBadKey,
+	StatusDone,
+	StatusError,
+	StatusNeedKey,
+	StatusOK,
+	StatusPhase,
+	StatusTooSmall,
 }
 
 // RPC represents an opened factotum(4) rpc file.
@@ -55,7 +68,7 @@ func (rpc *RPC) Close() error {
 }
 
 // Call sends a RPC request to factotum and returns the response.
-func (rpc *RPC) Call(verb string, arg []byte) (string, []byte, error) {
+func (rpc *RPC) Call(verb string, arg []byte) (Status, []byte, error) {
 	if len(verb)+1+len(arg) > rpcMaxLen {
 		return "", nil, errors.New("request too big")
 	}
@@ -74,10 +87,10 @@ func (rpc *RPC) Call(verb string, arg []byte) (string, []byte, error) {
 		ns := len(s)
 		if bytes.HasPrefix(b, []byte(s)) {
 			if len(b) == ns {
-				return string(b), nil, nil
+				return s, nil, nil
 			}
 			if b[ns] == ' ' {
-				return string(b[:ns]), b[ns+1:], nil
+				return s, b[ns+1:], nil
 			}
 		}
 	}
@@ -87,7 +100,7 @@ func (rpc *RPC) Call(verb string, arg []byte) (string, []byte, error) {
 // CallNeedKey is similar to Call except if the key involved
 // is missing or incomplete, getKey is called in an attempt
 // to obtain missing information.
-func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (string, []byte, error) {
+func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (Status, []byte, error) {
 	for {
 		status, b, err := rpc.Call(verb, arg)
 		if err != nil {
