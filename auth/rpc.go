@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 
 	"github.com/fhs/9fans-go/plan9"
 	"github.com/fhs/9fans-go/plan9/client"
@@ -67,6 +69,21 @@ func (rpc *RPC) Close() error {
 	return rpc.f.Close()
 }
 
+func classify(b []byte) (Status, []byte, error) {
+	for _, s := range rpcReplyStatuses {
+		ns := len(s)
+		if bytes.HasPrefix(b, []byte(s)) {
+			if len(b) == ns {
+				return s, nil, nil
+			}
+			if b[ns] == ' ' {
+				return s, b[ns+1:], nil
+			}
+		}
+	}
+	return "", nil, errors.New("bad rpc response: " + string(b))
+}
+
 // Call sends a RPC request to factotum and returns the response.
 func (rpc *RPC) Call(verb string, arg []byte) (Status, []byte, error) {
 	if len(verb)+1+len(arg) > rpcMaxLen {
@@ -82,19 +99,14 @@ func (rpc *RPC) Call(verb string, arg []byte) (Status, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	b := rpc.buf[:n]
-	for _, s := range rpcReplyStatuses {
-		ns := len(s)
-		if bytes.HasPrefix(b, []byte(s)) {
-			if len(b) == ns {
-				return s, nil, nil
-			}
-			if b[ns] == ' ' {
-				return s, b[ns+1:], nil
-			}
-		}
+	status, b, err := classify(rpc.buf[:n])
+	if err != nil {
+		return "", nil, err
 	}
-	return "", nil, errors.New("bad rpc response: " + string(b))
+	if status == StatusError {
+		return "", nil, fmt.Errorf("rpc error: %q", string(b))
+	}
+	return status, b, nil
 }
 
 // CallNeedKey is similar to Call except if the key involved
@@ -116,6 +128,81 @@ func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (Status,
 			if err := getKey(string(b)); err != nil {
 				return status, b, err
 			}
+		}
+	}
+}
+
+// getInfo returns AuthInfo message from factotum.
+func (rpc *RPC) getInfo() (*Info, error) {
+	status, b, err := rpc.Call("authinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != StatusOK {
+		return nil, fmt.Errorf("authinfo rpc reply is %q", status)
+	}
+	ai, _ := convM2AI(b)
+	if ai == nil {
+		return nil, fmt.Errorf("bad auth info from factotum")
+	}
+	return ai, nil
+}
+
+// Proxy proxies an authentication converstation between a remote server
+// and factotum.  Fid is usually the afid from Tauth 9P message. Params
+// must specify at least the proto and role attribute, where role is
+// either "client" or "server". For a 9P client, it would be "proto=p9any
+// role=client". The getKey function is called to obtaining missing
+// factotum key.
+func (rpc *RPC) Proxy(fid io.ReadWriter, getKey GetKeyFunc, params string) (*Info, error) {
+	status, _, err := rpc.Call("start", []byte(params))
+	if err != nil {
+		return nil, fmt.Errorf("auth proxy start rpc: %v", err)
+	}
+	if status != StatusOK {
+		return nil, fmt.Errorf("auth proxy start rpc reply is %q", status)
+	}
+	for {
+		status, b, err := rpc.callNeedKey(getKey, "read", nil)
+		if err != nil {
+			return nil, fmt.Errorf("auth proxy read rpc: %v", err)
+		}
+		switch status {
+		case StatusDone:
+			return rpc.getInfo()
+
+		case StatusOK:
+			if _, err := fid.Write(b); err != nil {
+				return nil, fmt.Errorf("auth proxy write fid: %v", err)
+			}
+
+		case StatusPhase:
+			buf := make([]byte, rpcMaxLen)
+			n := 0
+			for {
+				status, b, err = rpc.callNeedKey(getKey, "write", buf[:n])
+				if err != nil {
+					return nil, fmt.Errorf("auth proxy write rpc: %v", err)
+				}
+				if status != StatusTooSmall {
+					break
+				}
+				tot, err := strconv.Atoi(string(b))
+				if err != nil || tot > rpcMaxLen {
+					break
+				}
+				m, err := fid.Read(buf[n : tot-n])
+				if err != nil {
+					return nil, fmt.Errorf("auth proxy read fid: %v", err)
+				}
+				n += m
+			}
+			if status != StatusOK {
+				return nil, fmt.Errorf("auth proxy write rpc reply is %q", status)
+			}
+
+		default:
+			return nil, fmt.Errorf("auth proxy read rpc reply is %q", status)
 		}
 	}
 }
@@ -142,4 +229,15 @@ func GetUserPassword(getKey GetKeyFunc, format string, a ...interface{}) (string
 		return "", "", fmt.Errorf("bad factotum rpc response: %v", up)
 	}
 	return up[0], up[1], nil
+}
+
+// Proxy is a helper function for the RPC.Proxy method.
+func Proxy(fid io.ReadWriter, getKey GetKeyFunc, params string) (*Info, error) {
+	rpc, err := NewRPC()
+	if err != nil {
+		return nil, err
+	}
+	defer rpc.Close()
+
+	return rpc.Proxy(fid, getKey, params)
 }
