@@ -128,8 +128,8 @@ func (rpc *RPC) callNeedKey(getKey GetKeyFunc, verb string, arg []byte) (Status,
 	}
 }
 
-// getInfo returns AuthInfo message from factotum.
-func (rpc *RPC) getInfo() (*Info, error) {
+// GetInfo returns AuthInfo message from factotum.
+func (rpc *RPC) GetInfo() (*Info, error) {
 	status, b, err := rpc.Call("authinfo", nil)
 	if err != nil {
 		return nil, err
@@ -165,7 +165,7 @@ func (rpc *RPC) Proxy(fid io.ReadWriter, getKey GetKeyFunc, params string) (*Inf
 		}
 		switch status {
 		case StatusDone:
-			return rpc.getInfo()
+			return rpc.GetInfo()
 
 		case StatusOK:
 			if _, err := fid.Write(b); err != nil {

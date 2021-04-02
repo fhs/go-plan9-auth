@@ -24,18 +24,18 @@ func gstring(p []byte) (string, []byte) {
 
 // Info is the AuthInfo structure returned after a successful authentication.
 type Info struct {
-	cuid   string // caller id
-	suid   string // server id
-	cap    string // capability (only valid on server side)
-	secret []byte // secret
+	CallerID string // caller id
+	ServerID string // server id
+	Cap      string // capability (only valid on server side)
+	Secret   []byte // secret
 }
 
 func convM2AI(p []byte) (*Info, []byte) {
 	ai := new(Info)
-	ai.cuid, p = gstring(p)
-	ai.suid, p = gstring(p)
-	ai.cap, p = gstring(p)
-	ai.secret, p = gbytes(p)
+	ai.CallerID, p = gstring(p)
+	ai.ServerID, p = gstring(p)
+	ai.Cap, p = gstring(p)
+	ai.Secret, p = gbytes(p)
 	if p == nil {
 		return nil, p
 	}
